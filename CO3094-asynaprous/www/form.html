@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Đăng nhập - CO3094 P2P Chat</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #login-box {
+        background: #1e293b;
+        border-radius: 10px;
+        padding: 30px;
+        width: 360px;
+        border: 1px solid #334155;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      }
+      #login-box h2 {
+        color: #38bdf8;
+        margin-bottom: 6px;
+        text-align: center;
+      }
+      #login-box p {
+        font-size: 12px;
+        color: #64748b;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+      .field {
+        margin-bottom: 12px;
+      }
+      .field label {
+        display: block;
+        font-size: 11px;
+        color: #64748b;
+        margin-bottom: 4px;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+      .field input {
+        width: 100%;
+        padding: 10px;
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        color: white;
+        font-size: 13px;
+        outline: none;
+        transition: 0.2s;
+      }
+      .field input:focus {
+        border-color: #38bdf8;
+        box-shadow: 0 0 5px rgba(56, 189, 248, 0.3);
+      }
+      .field-row {
+        display: flex;
+        gap: 10px;
+      }
+      .field-row .field {
+        flex: 1;
+      }
+      #login-btn {
+        width: 100%;
+        padding: 12px;
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 8px;
+        transition: 0.2s;
+      }
+      #login-btn:hover {
+        background: #1d4ed8;
+      }
+      #login-err {
+        color: #f87171;
+        font-size: 13px;
+        margin-top: 12px;
+        text-align: center;
+        min-height: 15px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="login-box">
+      <h2>CO3094 — P2P Chat</h2>
+      <p>Hybrid Network App · Client-Server + Peer-to-Peer</p>
+
+      <div class="field">
+        <label>USERNAME</label>
+        <input
+          id="inp-user"
+          placeholder="Nhập username (vd: user1)"
+          autocomplete="off"
+        />
+      </div>
+
+      <div class="field">
+        <label>PASSWORD</label>
+        <input id="inp-pass" type="password" placeholder="••••••••" />
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>MY P2P PORT</label>
+          <input id="inp-myport" type="number" value="8001" />
+        </div>
+        <div class="field">
+          <label>TRACKER PORT</label>
+          <input id="inp-tracker" type="number" value="8001" />
+        </div>
+      </div>
+
+      <button id="login-btn" onclick="doLogin()">ĐĂNG NHẬP & KẾT NỐI</button>
+      <div id="login-err"></div>
+    </div>
+
+    <script>
+      // TỰ ĐỘNG CHUYỂN HƯỚNG CHỈ KHI PHIÊN (TOKEN) CÒN HỢP LỆ
+      window.addEventListener("DOMContentLoaded", async () => {
+        // ==========================================
+        // 1. TỰ ĐỘNG ĐIỀN MY PORT THEO URL HIỆN TẠI
+        // ==========================================
+        const currentPort = window.location.port || "8001";
+        const myPortInput = document.getElementById("inp-myport");
+        if (myPortInput) {
+          myPortInput.value = currentPort;
+          // Khóa luôn ô này lại để người dùng không sửa bậy (Tùy chọn)
+          myPortInput.readOnly = true;
+          myPortInput.style.backgroundColor = "#1e293b"; // Làm tối màu đi một chút
+          myPortInput.style.color = "#94a3b8";
+        }
+
+        // ==========================================
+        // 2. LOGIC KIỂM TRA AUTO-LOGIN (Giữ nguyên như cũ)
+        // ==========================================
+        const savedUser = localStorage.getItem("myUser");
+        const savedPort = localStorage.getItem("myPort");
+        const savedTracker = localStorage.getItem("tracker");
+        const errLabel = document.getElementById("login-err");
+
+        if (savedUser && savedPort && savedTracker) {
+          errLabel.style.color = "#38bdf8";
+          errLabel.textContent = "Đang kiểm tra tính hợp lệ của phiên...";
+
+          try {
+            const response = await fetch(
+              "http://127.0.0.1:" + savedPort + "/chat.html",
+              {
+                method: "GET",
+                credentials: "include",
+              }
+            );
+
+            if (response.status === 200) {
+              errLabel.style.color = "#4ade80";
+              errLabel.textContent =
+                "Phiên hợp lệ! Đang kết nối vào phòng chat...";
+              setTimeout(() => {
+                window.location.href = "/chat.html";
+              }, 500);
+            } else {
+              errLabel.style.color = "#f87171";
+              errLabel.textContent =
+                "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!";
+              localStorage.clear();
+            }
+          } catch (e) {
+            errLabel.style.color = "#f87171";
+            errLabel.textContent = "Không thể kết nối đến Local Node của bạn.";
+          }
+        }
+      });
+      async function api(method, path, body, port) {
+        const targetPort = port || tracker;
+        const opts = {
+          method,
+          headers: { "Content-Type": "application/json" },
+        };
+
+        // SỬA Ở ĐÂY: CHỈ gửi Cookie khi gọi về chính nhà mình (Local Node).
+        // KHÔNG gửi Cookie khi gọi lên Tracker để né cái luật cấm '*' của CORS.
+        if (targetPort == window.location.port) {
+          opts.credentials = "include";
+        }
+
+        if (body) opts.body = JSON.stringify(body);
+        try {
+          const r = await fetch("http://127.0.0.1:" + targetPort + path, opts);
+          let data = {};
+          try {
+            data = await r.json();
+          } catch {}
+
+          // Tự văng nếu Local Node báo mất Cookie
+          if (r.status === 401 && targetPort == myPort) {
+            localStorage.clear();
+            window.location.href = "/form.html";
+          }
+          return { ok: r.ok, status: r.status, data };
+        } catch (e) {
+          return { ok: false, status: 0, data: {} };
+        }
+      }
+
+      async function doLogin() {
+        const user = document.getElementById("inp-user").value.trim();
+        const pass = document.getElementById("inp-pass").value;
+        const mport = parseInt(document.getElementById("inp-myport").value);
+        const tport = parseInt(document.getElementById("inp-tracker").value);
+        const err = document.getElementById("login-err");
+
+        if (!user || !pass) {
+          err.textContent = "Vui lòng nhập đầy đủ Username và Password!";
+          return;
+        }
+
+        err.style.color = "#4ade80";
+        err.textContent = "Đang xin quyền từ Tracker Tổng (" + tport + ")...";
+
+        try {
+          // 1. GÕ CỬA TRACKER ĐỂ ĐĂNG NHẬP (Tracker sập là kẹt ở đây luôn)
+          const rTracker = await api(
+            "POST",
+            "/login",
+            { username: user, password: pass },
+            tport
+          );
+          if (!rTracker.ok) {
+            err.style.color = "#f87171";
+            err.textContent =
+              "Đăng nhập thất bại: Sai Pass hoặc Tracker đã sập!";
+            return;
+          }
+
+          // Lấy token do Tracker cấp
+          const token = rTracker.data.token;
+
+          err.textContent =
+            "Tracker cấp phép thành công! Đang báo cáo danh bạ...";
+
+          // 2. Báo cáo info cho Tracker
+          await api(
+            "POST",
+            "/submit-info",
+            { username: user, ip: "127.0.0.1", port: mport },
+            tport
+          );
+
+          err.textContent = "Đang đồng bộ chìa khóa xuống Local Node...";
+
+          // 3. Đem token của Tracker về cấp cho Local Node để nó cho phép mở file chat.html
+          const rLocal = await api(
+            "POST",
+            "/sync-auth",
+            { username: user, token: token },
+            mport
+          );
+
+          // 4. Lưu thông tin vào Sổ tay để đem qua trang chat
+          // 4. Lưu thông tin vào Sổ tay (localStorage) để dùng chéo nhiều Tab
+          localStorage.setItem("myUser", user);
+          localStorage.setItem("myPort", mport.toString());
+          localStorage.setItem("tracker", tport.toString());
+
+          window.location.href = "/chat.html";
+        } catch (e) {
+          err.style.color = "#f87171";
+          err.textContent = "Lỗi mạng: " + e.message;
+        }
+      }
+
+      document
+        .getElementById("inp-pass")
+        .addEventListener("keydown", function (e) {
+          if (e.key === "Enter") doLogin();
+        });
+    </script>
+  </body>
+</html>

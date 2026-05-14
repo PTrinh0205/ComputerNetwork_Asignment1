@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>CO3094 — P2P Chat Room</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      #header {
+        background: #1e293b;
+        padding: 10px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #334155;
+      }
+      #header h2 {
+        font-size: 16px;
+        color: #38bdf8;
+      }
+      #userinfo {
+        font-size: 13px;
+        color: #4ade80;
+      }
+      #app {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+      #sidebar {
+        width: 210px;
+        background: #111827;
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid #1f2937;
+      }
+      .sb-title {
+        padding: 10px 12px 6px;
+        font-size: 11px;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      #channel-list,
+      #peer-list {
+        list-style: none;
+      }
+      #channel-list li {
+        padding: 7px 12px;
+        font-size: 13px;
+        cursor: pointer;
+        color: #94a3b8;
+        border-left: 3px solid transparent;
+      }
+      #channel-list li:hover {
+        background: #1e293b;
+        color: white;
+      }
+      #channel-list li.active {
+        color: #38bdf8;
+        border-left-color: #38bdf8;
+        background: #1e293b;
+      }
+      #peer-list li {
+        padding: 6px 12px;
+        font-size: 13px;
+        color: #94a3b8;
+      }
+      .peer-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #4ade80;
+        flex-shrink: 0;
+      }
+      .dm-btn {
+        font-size: 11px;
+        padding: 2px 7px;
+        background: transparent;
+        border: 1px solid #38bdf8;
+        color: #38bdf8;
+        border-radius: 3px;
+        cursor: pointer;
+      }
+      .dm-btn:hover {
+        background: #38bdf8;
+        color: #000;
+      }
+      #refresh-btn {
+        margin: 8px;
+        padding: 6px;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 5px;
+        color: #94a3b8;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      #refresh-btn:hover {
+        color: white;
+      }
+      #chat {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      #chat-header {
+        background: #1e293b;
+        padding: 10px 16px;
+        border-bottom: 1px solid #334155;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+      }
+      #chat-header strong {
+        font-size: 14px;
+        color: white;
+      }
+      #chat-header span {
+        font-size: 12px;
+        color: #64748b;
+      }
+      #messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        background: #0b1120;
+      }
+      #messages::-webkit-scrollbar {
+        width: 4px;
+      }
+      #messages::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 2px;
+      }
+      .msg {
+        max-width: 68%;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        line-height: 1.5;
+        animation: fadeIn 0.2s;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .msg.self {
+        align-self: flex-end;
+        background: #1d4ed8;
+        color: white;
+        border-bottom-right-radius: 2px;
+      }
+      .msg.other {
+        align-self: flex-start;
+        background: #1e293b;
+        color: #e2e8f0;
+        border: 1px solid #334155;
+        border-bottom-left-radius: 2px;
+      }
+      .msg.dm-self {
+        align-self: flex-end;
+        background: #9f1239;
+        color: white;
+        border-bottom-right-radius: 2px;
+      }
+      .msg.dm-other {
+        align-self: flex-start;
+        background: #2d1215;
+        color: #fca5a5;
+        border: 1px solid #9f1239;
+        border-bottom-left-radius: 2px;
+      }
+      .msg .meta {
+        font-size: 10px;
+        opacity: 0.7;
+        margin-bottom: 3px;
+      }
+      .sys {
+        text-align: center;
+        font-size: 11px;
+        color: #475569;
+        padding: 4px;
+        font-style: italic;
+      }
+      #input-area {
+        background: #111827;
+        padding: 10px 12px;
+        border-top: 1px solid #1f2937;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      #dm-badge {
+        font-size: 11px;
+        background: #9f1239;
+        color: white;
+        padding: 3px 8px;
+        border-radius: 12px;
+        display: none;
+        white-space: nowrap;
+      }
+      #msg-input {
+        flex: 1;
+        padding: 9px 12px;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        color: white;
+        font-size: 13px;
+        outline: none;
+      }
+      #msg-input:focus {
+        border-color: #38bdf8;
+      }
+      #cancel-dm {
+        padding: 8px 10px;
+        background: #9f1239;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        display: none;
+      }
+      #send-btn {
+        padding: 9px 18px;
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      #send-btn:hover {
+        background: #1d4ed8;
+      }
+      #notif {
+        position: fixed;
+        bottom: 16px;
+        right: 16px;
+        background: #1e293b;
+        border: 1px solid #38bdf8;
+        color: white;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        max-width: 260px;
+        display: none;
+        z-index: 200;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+      }
+      #notif strong {
+        color: #4ade80;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="notif"></div>
+
+    <div id="header">
+      <h2>CO3094 — P2P Chat</h2>
+      <div id="userinfo">Đang tải...</div>
+      <span id="mode-info" style="font-size: 12px; color: #475569"></span>
+      <button
+        onclick="doLogout()"
+        style="
+          padding: 4px 10px;
+          background: #ef4444;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 12px;
+        "
+      >
+        Đăng xuất
+      </button>
+    </div>
+
+    <div id="app">
+      <div id="sidebar">
+        <div class="sb-title">Channels</div>
+        <button
+          onclick="createOrJoinGroup()"
+          style="
+            margin: 0 12px 8px;
+            width: calc(100% - 24px);
+            padding: 6px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+          "
+        >
+          Create Group Chat
+        </button>
+        <ul id="channel-list"></ul>
+        <div class="sb-title" style="margin-top: 8px">Peers Online</div>
+        <ul id="peer-list">
+          <li style="padding: 8px 12px; font-size: 12px; color: #475569">—</li>
+        </ul>
+        <button id="refresh-btn" onclick="refreshPeers()">↻ Làm mới</button>
+      </div>
+
+      <div id="chat">
+        <div id="chat-header">
+          <strong id="chat-title"># general</strong>
+          <span id="peer-count"></span>
+        </div>
+        <div id="messages">
+          <div class="sys">Đang kết nối vào phòng...</div>
+        </div>
+        <div id="input-area">
+          <!-- <div id="dm-badge">DM → <span id="dm-name"></span></div>
+          <input
+            id="msg-input"
+            placeholder="Nhập tin nhắn... (Enter để gửi)"
+            onkeydown="if(event.key==='Enter')sendMsg()"
+          />
+          <button id="cancel-dm" onclick="cancelDM()">✕ DM</button>
+          <button id="send-btn" onclick="sendMsg()">GỬI</button> -->
+          <input
+            id="msg-input"
+            placeholder="Nhập tin nhắn... (Enter để gửi)"
+            onkeydown="if(event.key==='Enter')sendMsg()"
+          />
+          <button id="send-btn" onclick="sendMsg()">GỬI</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // STATE
+      let myUser = null;
+      let myPort = null;
+      let tracker = null;
+      let timer = null;
+      let peerDirectory = {};
+      let peerTimer = null;
+      // BIẾN QUẢN LÝ KHÔNG GIAN CHAT
+      let curViewType = "channel"; // Đang xem "channel" hay "dm"
+      let curViewTarget = "general"; // Tên của Channel hoặc Tên của Peer
+
+      let lastCnt = 0; // Đếm tin nhắn channel
+      let lastTotalDM = 0; // Tổng tin DM (để hiện Notif)
+      let lastRenderedDMCnt = 0; // Đếm tin DM đã hiển thị trong khung
+
+      // KHÔI PHỤC STATE
+      window.addEventListener("DOMContentLoaded", async () => {
+        myUser = localStorage.getItem("myUser");
+        const portStr = localStorage.getItem("myPort");
+        const trackerStr = localStorage.getItem("tracker");
+
+        if (!myUser || !portStr || !trackerStr) {
+          window.location.href = "/form.html";
+          return;
+        }
+
+        myPort = parseInt(portStr);
+        tracker = parseInt(trackerStr);
+
+        document.getElementById("userinfo").textContent =
+          "👤 " + myUser + "  (Port:" + myPort + ")";
+        document.getElementById("messages").innerHTML = "";
+        addSys("Đã kết nối! Bạn đang là Server tại cổng " + myPort);
+        await api(
+          "POST",
+          "/submit-info",
+          { username: myUser, ip: "127.0.0.1", port: myPort },
+          tracker
+        );
+        await loadChannels();
+        await refreshPeers();
+        await loadMessages();
+        startPoll();
+      });
+
+      // Chống Ghost Peer
+      window.addEventListener("beforeunload", function () {
+        if (myUser && tracker) {
+          fetch("http://127.0.0.1:" + tracker + "/logout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: myUser }),
+            keepalive: true,
+          });
+        }
+      });
+
+      function doLogout() {
+        localStorage.clear();
+        window.location.href = "/form.html";
+      }
+
+      async function api(method, path, body, port) {
+        const targetPort = port || tracker;
+        const opts = {
+          method,
+          headers: { "Content-Type": "application/json" },
+        };
+
+        // SỬA Ở ĐÂY: CHỈ gửi Cookie khi gọi về chính nhà mình (Local Node).
+        // KHÔNG gửi Cookie khi gọi lên Tracker để né cái luật cấm '*' của CORS.
+        if (targetPort == window.location.port) {
+          opts.credentials = "include";
+        }
+
+        if (body) opts.body = JSON.stringify(body);
+        try {
+          const r = await fetch("http://127.0.0.1:" + targetPort + path, opts);
+          let data = {};
+          try {
+            data = await r.json();
+          } catch {}
+
+          // Tự văng nếu Local Node báo mất Cookie
+          if (r.status === 401 && targetPort == myPort) {
+            localStorage.clear();
+            window.location.href = "/form.html";
+          }
+          return { ok: r.ok, status: r.status, data };
+        } catch (e) {
+          return { ok: false, status: 0, data: {} };
+        }
+      }
+
+      // UI HELPERS
+      function addSys(t) {
+        const d = document.createElement("div");
+        d.className = "sys";
+        d.textContent = t;
+        document.getElementById("messages").appendChild(d);
+        scrollBot();
+      }
+      function addMsg(from, text, time, cls) {
+        const d = document.createElement("div");
+        d.className = "msg " + cls;
+        d.innerHTML =
+          "<div class='meta'>" +
+          esc(from) +
+          " · " +
+          (time || "") +
+          "</div>" +
+          esc(text);
+        document.getElementById("messages").appendChild(d);
+        scrollBot();
+      }
+      function scrollBot() {
+        const el = document.getElementById("messages");
+        el.scrollTop = el.scrollHeight;
+      }
+      function esc(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+      function notif(from, text) {
+        const n = document.getElementById("notif");
+        n.innerHTML = "<strong>📩 " + esc(from) + "</strong><br>" + esc(text);
+        n.style.display = "block";
+        clearTimeout(notif._t);
+        notif._t = setTimeout(() => (n.style.display = "none"), 3500);
+      }
+
+      // CHANNELS (Phụ thuộc Tracker)
+      async function createOrJoinGroup() {
+        const groupName = prompt(
+          "Nhập tên Nhóm (Channel) muốn tạo hoặc tham gia:"
+        );
+        if (!groupName || groupName.trim() === "") return;
+
+        const ch = groupName.trim();
+        try {
+          // Gõ cửa Tracker xin gia nhập nhóm
+          const r = await api(
+            "POST",
+            "/join-channel",
+            {
+              username: myUser,
+              channel: ch,
+            },
+            tracker
+          );
+
+          if (r.ok) {
+            // Nạp lại danh sách Channel bên trái
+            await loadChannels();
+            // Tự động chuyển qua nhóm mới luôn
+            switchChan(ch);
+            addSys("Đã tham gia nhóm: " + ch);
+          } else {
+            addSys("Lỗi khi tham gia nhóm!");
+          }
+        } catch (e) {
+          addSys("Lỗi mạng: " + e.message);
+        }
+      }
+      async function loadChannels() {
+        const r = await api("GET", "/get-channels", null, tracker);
+        if (!r.ok) return;
+        const list = document.getElementById("channel-list");
+        list.innerHTML = "";
+        (r.data.channels || ["general"]).forEach((ch) => {
+          const li = document.createElement("li");
+          li.textContent = "# " + ch;
+
+          // ĐÃ FIX: Sử dụng biến trạng thái mới thay vì curChan
+          if (curViewType === "channel" && ch === curViewTarget) {
+            li.className = "active";
+          }
+
+          li.onclick = () => switchChan(ch);
+          list.appendChild(li);
+        });
+      }
+      // async function switchChan(ch) {
+      //   curChan = ch;
+      //   lastCnt = 0;
+      //   document.getElementById("chat-title").textContent = "# " + ch;
+      //   document.getElementById("messages").innerHTML = "";
+      //   document
+      //     .querySelectorAll("#channel-list li")
+      //     .forEach(
+      //       (li) =>
+      //         (li.className =
+      //           li.textContent.trim() === "# " + ch ? "active" : "")
+      //     );
+      //   await loadMessages();
+      // }
+      async function switchChan(ch) {
+        curViewType = "channel";
+        curViewTarget = ch;
+        lastCnt = 0;
+
+        document.getElementById("chat-title").textContent = "# " + ch;
+        document.getElementById("messages").innerHTML = "";
+        document.getElementById("msg-input").placeholder =
+          "Nhắn vào nhóm " + ch + "...";
+
+        // Tô màu thẻ active bên trái
+        document
+          .querySelectorAll("#channel-list li")
+          .forEach(
+            (li) =>
+              (li.className =
+                li.textContent.trim() === "# " + ch ? "active" : "")
+          );
+        await loadMessages(); // Tải tin nhắn kênh
+      }
+
+      // PEERS & SỔ TAY OFFLINE
+      async function refreshPeers() {
+        const r = await api("GET", "/get-list", null, tracker);
+        const list = document.getElementById("peer-list");
+        list.innerHTML = "";
+        let peers = [];
+
+        if (r.ok) {
+          // Tracker Sống -> Lưu danh bạ mới
+          peers = r.data.peers || [];
+          peerDirectory = {};
+          peers.forEach((p) => {
+            peerDirectory[p.username] = p.port;
+          });
+          localStorage.setItem("backupPeers", JSON.stringify(peerDirectory));
+
+          document.getElementById("mode-info").textContent =
+            "Tracker: " + tracker + " (Online)";
+          document.getElementById("mode-info").style.color = "#475569";
+        } else {
+          // Tracker Sập -> Móc sổ tay ra xài
+          const backup = localStorage.getItem("backupPeers");
+          if (backup) {
+            peerDirectory = JSON.parse(backup);
+            peers = Object.keys(peerDirectory).map((k) => ({
+              username: k,
+              port: peerDirectory[k],
+            }));
+          }
+          document.getElementById("mode-info").textContent =
+            "Tracker Sập! (Chế độ P2P Offline)";
+          document.getElementById("mode-info").style.color = "#ef4444";
+        }
+
+        if (peers.length === 0) {
+          list.innerHTML =
+            "<li style='padding:8px 12px;font-size:12px;color:#475569'>Chưa có peer nào</li>";
+          document.getElementById("peer-count").textContent = "";
+          return;
+        }
+
+        let count = 0;
+        peers.forEach((p) => {
+          if (p.username === myUser) return;
+          count++;
+          const li = document.createElement("li");
+          const row = document.createElement("div");
+          row.className = "peer-row";
+          const left = document.createElement("div");
+          left.style.cssText = "display:flex;gap:6px;align-items:center";
+          const dot = document.createElement("div");
+          dot.className = "dot";
+          const span = document.createElement("span");
+          span.textContent = p.username;
+          left.appendChild(dot);
+          left.appendChild(span);
+
+          const btn = document.createElement("button");
+          btn.className = "dm-btn";
+          btn.textContent = "DM";
+          (function (name) {
+            btn.onclick = function () {
+              startDM(name);
+            };
+          })(p.username);
+
+          row.appendChild(left);
+          row.appendChild(btn);
+          li.appendChild(row);
+          list.appendChild(li);
+        });
+        document.getElementById("peer-count").textContent =
+          count > 0 ? count + " peers known" : "";
+      }
+
+      // MESSAGES (Broadcast, chat kênh qua Tracker)
+      // HÀM TRỢ GIÚP: Lưu tin nhắn vào localStorage (Tránh trùng lặp)
+      function saveToLocal(key, newMsgs) {
+        let localHist = JSON.parse(localStorage.getItem(key) || "[]");
+        // Gộp tin cũ và mới, dựa vào 'time' và 'message' để lọc trùng
+        const combined = [...localHist, ...newMsgs];
+        const unique = combined.filter(
+          (v, i, a) =>
+            a.findIndex((t) => t.time === v.time && t.message === v.message) ===
+            i
+        );
+        // Chỉ giữ tối đa 200 tin nhắn gần nhất để đỡ nặng máy
+        const final = unique
+          .sort((a, b) => a.time.localeCompare(b.time))
+          .slice(-200);
+        localStorage.setItem(key, JSON.stringify(final));
+        return final;
+      }
+
+      async function loadMessages() {
+        if (curViewType !== "channel") return;
+
+        // 1. Lấy tin từ máy mình trước cho nhanh
+        const localKey = "hist_chan_" + curViewTarget;
+        let msgs = JSON.parse(localStorage.getItem(localKey) || "[]");
+
+        // 2. Hỏi Tracker xem có tin gì mới không
+        const r = await api(
+          "POST",
+          "/get-messages",
+          { channel: curViewTarget },
+          tracker
+        );
+        if (r.ok) {
+          const serverMsgs = r.data.messages || [];
+          // Gộp và lưu lại
+          msgs = saveToLocal(localKey, serverMsgs);
+        }
+
+        // 3. Hiển thị ra màn hình
+        if (msgs.length === lastCnt) return;
+        document.getElementById("messages").innerHTML = "";
+        msgs.forEach((m) => {
+          const isSelf = m.from === myUser;
+          addMsg(m.from, m.message, m.time, isSelf ? "self" : "other");
+        });
+        lastCnt = msgs.length;
+      }
+
+      async function loadDM() {
+        if (!myPort || !myUser) return;
+
+        // Hỏi Local Node về danh sách tin nhắn DM tổng
+        const r = await api("POST", "/get-dm", { username: myUser }, myPort);
+        if (!r.ok) return;
+        let serverDMs = r.data.messages || [];
+
+        // 1. Phân loại và lưu từng đối tượng DM vào localStorage riêng
+        // Ví dụ: Tin nhắn với Khang lưu vào hist_dm_khang
+        const groups = serverDMs.reduce((acc, m) => {
+          const partner = m.direction === "sent" ? m.to : m.from;
+          if (!acc[partner]) acc[partner] = [];
+          acc[partner].push(m);
+          return acc;
+        }, {});
+
+        for (const partner in groups) {
+          saveToLocal("hist_dm_" + partner, groups[partner]);
+        }
+
+        // 2. Nếu đang mở khung DM với ai đó thì hiển thị
+        if (curViewType === "dm") {
+          const localKey = "hist_dm_" + curViewTarget;
+          const msgs = JSON.parse(localStorage.getItem(localKey) || "[]");
+
+          if (msgs.length !== lastRenderedDMCnt) {
+            document.getElementById("messages").innerHTML = "";
+            msgs.forEach((m) => {
+              const isSent = m.direction === "sent";
+              addMsg(
+                isSent ? "Bạn" : m.from,
+                m.message,
+                m.time,
+                isSent ? "dm-self" : "dm-other"
+              );
+            });
+            lastRenderedDMCnt = msgs.length;
+            scrollBot();
+          }
+        }
+      }
+      function startPoll() {
+        if (timer) clearInterval(timer);
+        if (peerTimer) clearInterval(peerTimer);
+
+        timer = setInterval(async () => {
+          await loadMessages();
+          await loadDM();
+        }, 2000);
+
+        peerTimer = setInterval(async () => {
+          await refreshPeers();
+          await loadChannels(); // THÊM DÒNG NÀY: Để cập nhật nhóm mới từ Tracker
+        }, 5000);
+      }
+
+      // SEND (Broadcast / P2P DM)
+      async function sendMsg() {
+        const input = document.getElementById("msg-input");
+        const text = input.value.trim();
+        if (!text || !myUser) return;
+        input.value = "";
+
+        if (curViewType === "dm") {
+          // GỬI P2P
+          const targetPort = peerDirectory[curViewTarget];
+          if (!targetPort) {
+            addSys(
+              "Lỗi: Không tìm thấy Port của " +
+                curViewTarget +
+                " trong danh bạ!"
+            );
+            return;
+          }
+          const t = new Date().toLocaleTimeString("vi", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          });
+
+          const r = await api(
+            "POST",
+            "/receive-message",
+            {
+              type: "direct",
+              from: myUser,
+              to: curViewTarget,
+              message: text,
+              time: t,
+            },
+            targetPort
+          );
+
+          if (r.ok) {
+            // Nhớ báo cho Local Node cất lịch sử
+            await api(
+              "POST",
+              "/receive-message",
+              {
+                type: "direct",
+                from: myUser,
+                to: curViewTarget,
+                message: text,
+                direction: "sent",
+                time: t,
+              },
+              myPort
+            );
+            loadDM();
+          } else {
+            addSys("DM thất bại: Đối phương mất mạng!");
+          }
+        } else {
+          // GỬI KÊNH (GROUP / GENERAL)
+          const r = await api(
+            "POST",
+            "/broadcast-peer",
+            {
+              from: myUser,
+              channel: curViewTarget,
+              message: text,
+            },
+            tracker
+          );
+          if (!r.ok) addSys("Gửi thất bại: Tracker đã sập!");
+        }
+      }
+
+      // DM MODE
+      // function startDM(username) {
+      //   if (username === myUser) return;
+      //   dmTarget = username;
+      //   document.getElementById("dm-badge").style.display = "flex";
+      //   document.getElementById("dm-name").textContent = username;
+      //   document.getElementById("cancel-dm").style.display = "block";
+      //   document.getElementById("msg-input").placeholder =
+      //     "Nhắn riêng cho " + username + "...";
+      //   document.getElementById("send-btn").textContent = "DM";
+      //   document.getElementById("send-btn").style.background = "#9f1239";
+      //   document.getElementById("msg-input").focus();
+      //   addSys(
+      //     "→ Đang kết nối trực tiếp (P2P) với " +
+      //       username +
+      //       ". Bấm ✕ DM để huỷ."
+      //   );
+      // }
+      function startDM(username) {
+        if (username === myUser) return;
+        curViewType = "dm";
+        curViewTarget = username;
+        lastRenderedDMCnt = 0;
+
+        document.getElementById("chat-title").textContent =
+          "💬 Trò chuyện riêng với: " + username;
+        document.getElementById("messages").innerHTML = "";
+        document.getElementById("msg-input").placeholder =
+          "Nhắn riêng cho " + username + "...";
+
+        // Tắt màu thẻ active của channel đi
+        document
+          .querySelectorAll("#channel-list li")
+          .forEach((li) => (li.className = ""));
+
+        addSys("Đã mở không gian riêng tư (P2P) với " + username);
+        loadDM(); // Tải tin nhắn riêng
+      }
+
+      // function cancelDM() {
+      //   dmTarget = null;
+      //   document.getElementById("dm-badge").style.display = "none";
+      //   document.getElementById("cancel-dm").style.display = "none";
+      //   document.getElementById("msg-input").placeholder =
+      //     "Nhập tin nhắn... (Enter để gửi)";
+      //   document.getElementById("send-btn").textContent = "GỬI";
+      //   document.getElementById("send-btn").style.background = "#2563eb";
+      //   addSys("← Về phòng chat chung (Broadcast).");
+      // }
+    </script>
+  </body>
+</html>
